@@ -1,0 +1,220 @@
+<!-- Updated head_dashboard.html (added JS to check for name conflicts when adding files, prompt user for action: replace (keep as is for submit), skip (remove from selected), rename (append timestamp or _copy) -->
+
+{% extends "base.html" %}
+{% block title %}Head Dashboard - RAG Assistant{% endblock %}
+{% block content %}
+<div class="main-card p-0">
+    <div class="header-section">
+        <h1><i class="fas fa-user-tie"></i> Head Dashboard</h1>
+        <p class="mb-0">Manage Documents ({{ files|length }} files)</p>
+    </div>
+    <div class="card-body p-4">
+        <div class="mb-4">
+            <h5><i class="fas fa-upload text-primary"></i> Upload New Documents</h5>
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="hidden" name="action" value="upload">
+                <div class="drop-zone" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-2">Drag PDF files here or <strong>click</strong> to browse</p>
+                    <input type="file" id="fileInput" name="files" multiple accept=".pdf" style="display: none;">
+                    <button type="button" class="btn btn-outline-primary"
+                        onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-folder-open"></i> Browse Files
+                    </button>
+                    <div id="filePreview" class="mt-3"></div>
+                </div>
+                <button type="submit" class="btn btn-success upload-btn" id="uploadBtn" disabled>
+                    <i class="fas fa-upload"></i> Upload Files (<span id="fileCount">0</span>)
+                </button>
+            </form>
+        </div>
+        <h5><i class="fas fa-file-pdf text-success"></i> Existing Documents</h5>
+        {% if files %}
+        <form method="POST" class="mb-4" id="removeForm">
+            <input type="hidden" name="action" value="remove">
+            {% for file in files %}
+            <div class="file-item d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                <div>
+                    <i class="fas fa-file-pdf text-danger"></i>
+                    <a href="{{ url_for('serve_pdf', filename=file) }}" target="_blank" class="text-decoration-none">{{
+                        file }}</a>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="remove_files" value="{{ file }}">
+                </div>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-danger"
+                onclick="return confirm('Are you sure you want to delete the selected files?');">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </form>
+        {% else %}
+        <div class="alert alert-info">No documents available</div>
+        {% endif %}
+        <div class="mb-4">
+            <h5><i class="fas fa-history text-info"></i> Operation Log</h5>
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-outline-primary" onclick="viewLog()">
+                    <i class="fas fa-eye"></i> View Operation Log
+                </button>
+                <a href="{{ url_for('download_log') }}" class="btn btn-outline-success">
+                    <i class="fas fa-download"></i> Download Log (.txt)
+                </a>
+            </div>
+            <div class="log-box p-3 bg-light rounded">{{ log_content }}</div>
+        </div>
+        <div class="mb-4"> <!-- New section -->
+            <h5><i class="fas fa-comment-dots text-info"></i> Feedback Log</h5>
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-outline-primary" onclick="viewFeedback()">
+                    <i class="fas fa-eye"></i> View Feedback Log
+                </button>
+                <a href="{{ url_for('download_feedback') }}" class="btn btn-outline-success">
+                    <i class="fas fa-download"></i> Download Feedback (.txt)
+                </a>
+            </div>
+            <div class="log-box p-3 bg-light rounded">{{ feedback_content }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    let selectedFiles = [];
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileCount = document.getElementById('fileCount');
+    const existingFiles = {{ files | tojson }};  // Expose existing files to JS
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const newFiles = Array.from(e.dataTransfer.files);
+        addFiles(newFiles);
+    });
+    fileInput.addEventListener('change', () => {
+        const newFiles = Array.from(fileInput.files);
+        addFiles(newFiles);
+        fileInput.value = '';
+    });
+    function addFiles(newFiles) {
+        newFiles.forEach(file => {
+            if (file.type !== 'application/pdf') {
+                alert(`"${file.name}" is not a PDF file`);
+                return;
+            }
+            const filename = file.name;
+            if (existingFiles.includes(filename)) {
+                const choice = prompt(`File "${filename}" already exists. Choose action:\n1. Replace\n2. Skip\n3. Rename and upload`, "1");
+                if (choice === "1") {
+                    // Replace: add as is
+                    selectedFiles.push(file);
+                } else if (choice === "3") {
+                    // Rename: append timestamp
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const parts = filename.split('.');
+                    const newName = `${parts[0]}_${timestamp}.${parts[1]}`;
+                    const renamedFile = new File([file], newName, { type: file.type });
+                    selectedFiles.push(renamedFile);
+                } // Skip if 2 or invalid
+            } else {
+                selectedFiles.push(file);
+            }
+        });
+        displayFiles();
+    }
+    function displayFiles() {
+        filePreview.innerHTML = '';
+        if (selectedFiles.length === 0) {
+            filePreview.innerHTML = '<p class="text-muted">No PDF files selected</p>';
+            uploadBtn.disabled = true;
+            fileCount.textContent = '0';
+            return;
+        }
+        let html = `<div class="alert alert-success">
+                        <h6><i class="fas fa-check-circle"></i> ${selectedFiles.length} PDF Files Ready:</h6>`;
+        selectedFiles.forEach((file, index) => {
+            const sizeKB = (file.size / 1024).toFixed(1);
+            html += `
+                <div class="p-2 bg-white border rounded mb-2 d-flex justify-content-between">
+                    <div>
+                        <i class="fas fa-file-pdf text-danger me-2"></i>
+                        <strong>${file.name}</strong>
+                        <span class="badge bg-success">${sizeKB} KB</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+        });
+        html += '</div>';
+        filePreview.innerHTML = html;
+        uploadBtn.disabled = false;
+        fileCount.textContent = selectedFiles.length;
+    }
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        displayFiles();
+    }
+    document.getElementById('uploadForm').addEventListener('submit', function () {
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
+    });
+    function viewLog() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = '<input type="hidden" name="action" value="view_log">';
+        document.body.appendChild(form);
+        form.submit();
+    }
+    function viewFeedback() {  <!-- New function -->
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = '<input type="hidden" name="action" value="view_feedback">';
+        document.body.appendChild(form);
+        form.submit();
+    }
+    dropZone.addEventListener('click', e => {
+        if (e.target.tagName !== 'INPUT' && !e.target.closest('button')) {
+            fileInput.click();
+        }
+    });
+</script>
+<style>
+    .drop-zone {
+        border: 3px dashed #007bff;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        background: white;
+        transition: all 0.3s;
+        min-height: 150px;
+        margin: 20px 0;
+    }
+
+    .drop-zone.dragover {
+        background-color: #E3F2FD;
+        border-color: #2196F3;
+    }
+
+    .log-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    .upload-btn {
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}

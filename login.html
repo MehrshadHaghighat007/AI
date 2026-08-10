@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Login - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="main-card p-5">
+    <div class="header-section">
+        <h1><i class="fas fa-sign-in-alt"></i> Employee Login</h1>
+        <p class="mb-0">Enter your Employee ID to access the system</p>
+    </div>
+    <div class="card-body p-5">
+        <form method="POST">
+            <div class="mb-4">
+                <label class="form-label"><i class="fas fa-id-card text-primary"></i> Employee ID</label>
+                <input type="text" class="form-control" name="user_id" required placeholder="Enter your ID">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

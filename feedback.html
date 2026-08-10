@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="main-card p-0">
+    <div class="header-section">
+        <h1><i class="fas fa-comment-dots"></i> Submit Feedback</h1>
+        <p class="mb-0">Help us improve the AI assistant</p>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST">
+            <div class="mb-4">
+                <label class="form-label">Your Feedback</label>
+                <textarea class="form-control" name="feedback" rows="5" required placeholder="What can we improve?"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-paper-plane"></i> Submit
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

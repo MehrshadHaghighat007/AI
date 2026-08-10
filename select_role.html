@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Select Role - RAG Assistant{% endblock %}
+
+{% block content %}
+<div class="main-card p-5">
+    <div class="header-section">
+        <h1><i class="fas fa-user-tie"></i> Head of Unit</h1>
+        <p class="mb-0">Choose your access level</p>
+    </div>
+    <div class="card-body p-5 text-center">
+        <form method="POST">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <button type="submit" name="role_choice" value="head" class="btn btn-primary w-100 p-4">
+                        <i class="fas fa-user-tie fa-2x mb-2 d-block"></i>
+                        <h5>Head Dashboard</h5>
+                        <p class="mb-0">Manage Documents</p>
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" name="role_choice" value="employee" class="btn btn-success w-100 p-4">
+                        <i class="fas fa-user fa-2x mb-2 d-block"></i>
+                        <h5>Employee Dashboard</h5>
+                        <p class="mb-0">Search Documents</p>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
