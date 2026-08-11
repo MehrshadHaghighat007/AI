@@ -1,0 +1,10 @@
+# Sensitive local RAG data
+assistant.db
+employees.json
+raw_chunks.index
+raw_refs.pkl
+history.db
+
+# Environment variables / secrets
+.env
+.env.*
