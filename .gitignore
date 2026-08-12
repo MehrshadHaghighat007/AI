@@ -1,10 +1,30 @@
-# Sensitive local RAG data
-assistant.db
-employees.json
-raw_chunks.index
-raw_refs.pkl
-history.db
-
-# Environment variables / secrets
+# Environment / secrets
 .env
-.env.*
+*.key
+
+# Data - excluded to protect organizational confidentiality
+*.db
+*.sqlite
+*.sqlite3
+*.index
+*.pkl
+employees.json
+data/
+uploads/
+documents/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
