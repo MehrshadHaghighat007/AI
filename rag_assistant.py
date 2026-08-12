@@ -20,8 +20,10 @@ import pickle
 import difflib
 import traceback
 
-RAW_INDEX_FILE = "raw_chunks.index"
-RAW_REFS_FILE = "raw_refs.pkl"
+RAW_INDEX_FILE = os.environ.get("RAW_INDEX_FILE", "raw_chunks.index")
+RAW_REFS_FILE = os.environ.get("RAW_REFS_FILE", "raw_refs.pkl")
+LLM_ENDPOINT = os.environ.get("LLM_ENDPOINT", "http://localhost:11434")
+LLM_MODEL_NAME = os.environ.get("LLM_MODEL_NAME", "llama3:8b-instruct-q4_0")
 
 
 class RAGAssistant:
@@ -124,19 +126,6 @@ class RAGAssistant:
         text = re.sub(r"[^\w\s]", " ", text)
         text = re.sub(r"\s+", " ", text).strip()
         return text
-
-    # def normalize_persian_text(self, text):
-    #     text = re.sub(r'\u200c', ' ', text)
-    #     text = re.sub(r'[يى]', 'ی', text)
-    #     text = re.sub(r'[ك]', 'ک', text)
-    #     text = re.sub(r'[ئ]', 'ی', text)
-    #     text = re.sub(r'[ة]', 'ه', text)
-    #     # text = re.sub(r'خالصه', 'خلاصه', text)
-    #     text = re.sub(r'ال', 'ل', text)
-    #     text = re.sub(r'\s*/\s*', '/', text)
-    #     text = re.sub(r'[\t\r\n]+', ' ', text)
-    #     text = re.sub(r'\s+', ' ', text)
-    #     return text.strip()
 
     def normalize_persian_text(self, text):
         replacements = {
@@ -312,9 +301,9 @@ class RAGAssistant:
     def ask_llama3(self, prompt):
         try:
             response = requests.post(
-                "http://localhost:11434/api/generate",
+                f"{LLM_ENDPOINT}/api/generate",
                 json={
-                    "model": "llama3:8b-instruct-q4_0",
+                    "model": LLM_MODEL_NAME,
                     "prompt": prompt,
                     "temperature": 0.7,
                     "max_tokens": 1000,
@@ -324,9 +313,9 @@ class RAGAssistant:
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("response", "[!] No response from LLaMA 3")
+            return data.get("response", "[!] No response from the language model")
         except requests.RequestException as e:
-            return f"[!] Error calling LLaMA 3: {e}"
+            return f"[!] Error calling the language model: {e}"
 
     def process_query(self, query, user_id, user_name="", user_unit="", conversation_id=None, top_k_raw=20):
         try:
@@ -452,13 +441,13 @@ class RAGAssistant:
                 f"لطفاً فقط بر اساس اطلاعات بالا پاسخ کامل و دقیق به فارسی بده."
             )
 
-            print("\n📋 اطلاعات ارسالی به LLaMA 3:")
+            print("\n[i] Context sent to the language model:")
             print(structured_prompt)
 
-            print("\n💬 پاسخ از LLaMA 3:")
+            print("\n[i] Response from the language model:")
             start_time = time.time()
-            llama3_reply = self.ask_llama3(structured_prompt)
-            print(f"\nLLaMA 3 time: {time.time() - start_time:.2f} seconds")
+            llm_reply = self.ask_llama3(structured_prompt)
+            print(f"\nLLM response time: {time.time() - start_time:.2f} seconds")
 
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -466,11 +455,11 @@ class RAGAssistant:
                 cursor.execute("INSERT INTO conversations (user_id, title) VALUES (?, ?)", (user_id, query[:50]))
                 conversation_id = cursor.lastrowid
             cursor.execute("INSERT INTO searches (conversation_id, query, response) VALUES (?, ?, ?)",
-                           (conversation_id, query, llama3_reply))
+                           (conversation_id, query, llm_reply))
             conn.commit()
             conn.close()
 
-            return llama3_reply, conversation_id  # CHANGED HERE
+            return llm_reply, conversation_id
 
         except Exception as e:
             print(f"[!] Error: {e}")
@@ -526,28 +515,3 @@ class RAGAssistant:
         commons = cursor.fetchall()
         conn.close()
         return commons
-
-    # In your RAGAssistant class
-    def create_conversation(self, user_id, title):
-        conv_id = str(uuid.uuid4())
-        # Save to DB or memory
-        self.chat_db[conv_id] = {'user_id': user_id, 'title': title, 'timestamp': datetime.now()}
-        return conv_id
-
-    def add_message(self, conv_id, user_id, role, content):
-        if conv_id not in self.messages:
-            self.messages[conv_id] = []
-        self.messages[conv_id].append({
-            'role': role,
-            'content': content,
-            'timestamp': datetime.now()
-        })
-
-    def get_chat_history(self, user_id):
-        return [
-            {'id': cid, 'title': data['title'], 'timestamp': data['timestamp'].strftime('%b %d')}
-            for cid, data in self.chat_db.items() if data['user_id'] == user_id
-        ]
-
-    def get_conversation_messages(self, conv_id):
-        return self.messages.get(conv_id, [])
