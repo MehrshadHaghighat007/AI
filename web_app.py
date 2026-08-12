@@ -3,23 +3,27 @@ import os
 os.environ['NO_PROXY'] = 'localhost,127.0.0.1,::1'
 import json
 from datetime import datetime
+from dotenv import load_dotenv
 from rag_assistant import RAGAssistant
 import unicodedata  # Added for safe_filename
 
+load_dotenv()  # reads variables from a local .env file (not committed to git)
+
 app = Flask(__name__)
-app.secret_key = 'some_thing'
-app.config['UPLOAD_FOLDER'] = '/home/mehrshad/Downloads/Python/rag_project/pdfs'
+app.secret_key = os.environ["SECRET_KEY"]
+app.config['UPLOAD_FOLDER'] = os.environ["UPLOAD_FOLDER"]
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 # === ADD THIS AFTER app.config ===
-USER_CHAT_DIR = '/home/mehrshad/Downloads/Python/rag_project/user_chat_history'
+USER_CHAT_DIR = os.environ["USER_CHAT_DIR"]
 os.makedirs(USER_CHAT_DIR, exist_ok=True)  # Safe new folder
 
 # Load employees.json
+EMPLOYEES_FILE = os.environ["EMPLOYEES_FILE"]
 try:
-    with open("/home/mehrshad/Downloads/Python/rag_project/employees.json", "r") as f:
+    with open(EMPLOYEES_FILE, "r") as f:
         employees = json.load(f)
 except FileNotFoundError:
-    print("Error: employees.json not found")
+    print(f"Error: {EMPLOYEES_FILE} not found")
     employees = {}
 
 assistant = RAGAssistant(app.config['UPLOAD_FOLDER'])
