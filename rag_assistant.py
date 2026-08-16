@@ -278,6 +278,11 @@ class RAGAssistant:
             print("[*] Building raw text index...")
             self.raw_index, self.raw_refs = self.build_rawtext_index()
             print("[*] Saving raw text index to disk...")
+            # Ensure the parent folder(s) for these paths exist before writing,
+            # so a fresh clone with a brand-new .env (e.g. RAW_INDEX_FILE=./data/raw_chunks.index)
+            # doesn't fail on first run just because ./data/ hasn't been created yet.
+            os.makedirs(os.path.dirname(os.path.abspath(RAW_INDEX_FILE)), exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.abspath(RAW_REFS_FILE)), exist_ok=True)
             faiss.write_index(self.raw_index, RAW_INDEX_FILE)
             with open(RAW_REFS_FILE, "wb") as f:
                 pickle.dump(self.raw_refs, f)
