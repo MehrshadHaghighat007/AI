@@ -1,8 +1,63 @@
-# Enterprise RAG Assistant — Persian Document Intelligence System
+# enterprise-rag-assistant
+
+## Persian Document Intelligence System
 
 An enterprise-grade Retrieval-Augmented Generation (RAG) system designed and built for **Pakshoo Industrial Group**, enabling employees to query internal documents, meeting minutes, and official memoranda in natural Persian language and receive accurate, context-grounded answers — without exposing sensitive organizational data to third-party APIs.
 
-> **Note:** This repository contains the core application logic developed for this project. The data files, employee records, and document indexes included here (`employees.json`, `*.db`, `*.index`, `*.pkl`) are synthetic placeholders created to demonstrate the system's structure while preserving the confidentiality of real organizational data. Absolute file paths in the source reflect the original local development environment and are not intended to run as-is.
+> **Note:** This repository contains the core application logic developed for this project. Data files, employee records, and document/vector indexes are intentionally excluded (see `.gitignore`) to preserve the confidentiality of real organizational data — only the application source is published. Configuration such as file paths and secrets is loaded from environment variables and is not hardcoded in source.
+
+## Setup
+
+1. **Clone the repo and set up a virtual environment**
+   ```
+   git clone https://github.com/MehrshadHaghighat007/enterprise-rag-assistant.git
+   cd enterprise-rag-assistant
+   python3 -m venv venv
+   source venv/bin/activate   # venv\Scripts\activate on Windows
+   ```
+
+2. **Install dependencies**
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. **Create your `.env` file from the template and fill in real values**
+   ```
+   cp .env.example .env
+   ```
+   `.env.example` is a placeholder template safe to commit; `.env` holds your real secret key and local paths and must never be committed (it's already covered by `.gitignore`). At minimum, set:
+   - `SECRET_KEY` — any long random string, used to sign Flask session cookies
+   - `UPLOAD_FOLDER`, `USER_CHAT_DIR`, `EMPLOYEES_FILE` — local paths for this machine (relative paths like `./data/...` work fine and are created automatically)
+   - `LLM_ENDPOINT` / `LLM_MODEL_NAME` — see local LLM setup below
+   - `RAW_INDEX_FILE`, `RAW_REFS_FILE` — just pick any writable file paths; you don't create these files yourself, the app generates them automatically on first run (see below)
+
+4. **Pre-download the embedding model**
+   The app runs with `HF_HUB_OFFLINE=1` (no network calls at query time), so the multilingual sentence-transformer model needs to be cached locally *before* the first run:
+   ```
+   HF_HUB_OFFLINE=0 python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+   ```
+   This downloads the model once into the Hugging Face cache (`~/.cache/huggingface`). After that, the app can run fully offline.
+
+5. **Set up the local LLM (Ollama)**
+   Install [Ollama](https://ollama.com), then pull the model referenced by `LLM_MODEL_NAME` in your `.env` (e.g. `ollama pull llama3:8b-instruct-q4_0`, or the equivalent Qwen tag for the production setup). Ollama serves on `http://localhost:11434` by default, matching `LLM_ENDPOINT` — make sure it's running before starting the app.
+
+6. **Add an `employees.json`**
+   Create the file at the path set in `EMPLOYEES_FILE`, mapping employee IDs to name/unit/role, e.g.:
+   ```json
+   {
+     "1001": {"name": "Test User", "unit": "IT", "role": "employee"},
+     "1002": {"name": "Admin", "unit": "IT", "role": "head_of_unit"}
+   }
+   ```
+
+7. **Add PDF documents**
+   Drop a few PDFs into `UPLOAD_FOLDER` so the RAG pipeline has content to index. Documents matching the expected Persian meeting-minutes headings (`تاریخ`, `موضوع جلسه`, `رئیس جلسه`, etc.) get full structured metadata extraction; other PDFs are still indexed for raw-text semantic search.
+
+8. **Run the app**
+   ```
+   python web_app.py
+   ```
+   On first launch the app builds the metadata index and the raw-text FAISS index (`RAW_INDEX_FILE` / `RAW_REFS_FILE`) from your PDFs and saves them to the paths you chose in `.env` — you don't create these two files yourself. On every later run, they're loaded from disk instead of being rebuilt; delete them together if you ever want to force a full rebuild (e.g. after adding new PDFs). The app then starts the Flask dev server at `http://127.0.0.1:5000`.
 
 ## Overview
 
