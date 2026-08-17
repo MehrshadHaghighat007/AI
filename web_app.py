@@ -4,10 +4,15 @@ os.environ['NO_PROXY'] = 'localhost,127.0.0.1,::1'
 import json
 from datetime import datetime
 from dotenv import load_dotenv
-from rag_assistant import RAGAssistant
-import unicodedata  # Added for safe_filename
 
 load_dotenv()  # reads variables from a local .env file (not committed to git)
+# Must run BEFORE importing rag_assistant, since that module reads
+# RAW_INDEX_FILE / RAW_REFS_FILE / LLM_ENDPOINT / LLM_MODEL_NAME from
+# os.environ at import time (module-level code). Importing it earlier
+# would silently fall back to this module's hardcoded defaults instead
+# of the values in .env.
+from rag_assistant import RAGAssistant
+import unicodedata  # Added for safe_filename
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
